@@ -19,7 +19,6 @@ package ch.syabru.nagios;
  * Nagios JMX plugin exception.
  *
  * @author Felix Roethenbacher
- *
  */
 public class NagiosJmxPluginException extends Exception {
 
@@ -27,15 +26,9 @@ public class NagiosJmxPluginException extends Exception {
 
     /**
      * C'tor.
-     */
-    public NagiosJmxPluginException() {
-        super();
-    }
-
-    /**
-     * C'tor.
+     *
      * @param message Message.
-     * @param cause Cause.
+     * @param cause   Cause.
      */
     public NagiosJmxPluginException(String message, Throwable cause) {
         super(message, cause);
@@ -43,6 +36,7 @@ public class NagiosJmxPluginException extends Exception {
 
     /**
      * C'tor.
+     *
      * @param message Message.
      */
     public NagiosJmxPluginException(String message) {
@@ -51,6 +45,7 @@ public class NagiosJmxPluginException extends Exception {
 
     /**
      * C'tor.
+     *
      * @param cause Cause.
      */
     public NagiosJmxPluginException(Throwable cause) {
