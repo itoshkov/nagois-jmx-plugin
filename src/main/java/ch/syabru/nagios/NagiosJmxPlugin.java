@@ -21,19 +21,14 @@ import javax.management.openmbean.InvalidKeyException;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.io.Reader;
+import javax.xml.bind.DatatypeConverter;
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.ConnectException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -208,6 +203,12 @@ public class NagiosJmxPlugin {
      * Help output.
      */
     public static final String PROP_HELP = "help";
+    /**
+     * Log to file.
+     */
+    public static final String PROP_LOG = "log";
+
+    private static PrintStream LOG = null;
 
     private final Map<MBeanServerConnection, JMXConnector> connections =
             new HashMap<MBeanServerConnection, JMXConnector>();
@@ -424,8 +425,8 @@ public class NagiosJmxPlugin {
             if (connection != null) {
                 try {
                     closeConnection(connection);
-                } catch (Exception e) {
-                    throw new NagiosJmxPluginException("Error closing JMX connection", e);
+                } catch (IOException e) {
+                    log(e);
                 }
             }
         }
@@ -684,31 +685,58 @@ public class NagiosJmxPlugin {
         }
     }
 
+    public static void log(Object msg) {
+        if (LOG != null) {
+            LOG.println(new Date().toString() + ": " + msg.toString());
+            LOG.flush();
+        }
+    }
+
     /**
      * Main method.
      *
      * @param args Command line arguments.
      */
     public static void main(String[] args) {
-        final PrintStream out = System.out;
-        final NagiosJmxPlugin plugin = new NagiosJmxPlugin();
         int exitCode;
-        final Properties props = parseArguments(args);
-        final String verbose = props.getProperty(PROP_VERBOSE);
         try {
-            exitCode = plugin.execute(props);
-        } catch (NagiosJmxPluginException e) {
-            out.println(Status.CRITICAL.getMessagePrefix() + e.getMessage());
-            if (verbose != null)
-                e.printStackTrace(System.out);
-            exitCode = Status.CRITICAL.getExitCode();
-        } catch (Exception e) {
-            out.println(Status.UNKNOWN.getMessagePrefix() + e.getMessage());
-            if (verbose != null)
-                e.printStackTrace(System.out);
-            exitCode = Status.UNKNOWN.getExitCode();
+            final PrintStream out = System.out;
+            final NagiosJmxPlugin plugin = new NagiosJmxPlugin();
+            final Properties props = parseArguments(args);
+            initLog(props);
+            log(props);
+            final String verbose = props.getProperty(PROP_VERBOSE);
+            try {
+                exitCode = plugin.execute(props);
+            } catch (NagiosJmxPluginException e) {
+                out.println(Status.CRITICAL.getMessagePrefix() + e.getMessage());
+                if (verbose != null)
+                    e.printStackTrace(System.out);
+                exitCode = Status.CRITICAL.getExitCode();
+            } catch (Exception e) {
+                out.println(Status.UNKNOWN.getMessagePrefix() + e.getMessage());
+                if (verbose != null)
+                    e.printStackTrace(System.out);
+                exitCode = Status.UNKNOWN.getExitCode();
+            }
+        } finally {
+            if (LOG != null)
+                try {
+                    LOG.close();
+                } catch (Exception ignore) {
+                }
         }
         System.exit(exitCode);
+    }
+
+    private static void initLog(Properties props) {
+        final String logFileName = props.getProperty(PROP_LOG);
+        if (logFileName != null) {
+            try {
+                LOG = new PrintStream(new FileOutputStream(logFileName, true));
+            } catch (FileNotFoundException ignore) {
+            }
+        }
     }
 
     /**
@@ -766,6 +794,8 @@ public class NagiosJmxPlugin {
                 props.put(PROP_SERVICE_URL, args[++i]);
             else if ("-O".equals(args[i]))
                 props.put(PROP_OBJECT_NAME, args[++i]);
+            else if ("-B".equals(args[i]))
+                props.put(PROP_OBJECT_NAME, base64Decode(args[++i]));
             else if ("-A".equals(args[i]))
                 props.put(PROP_ATTRIBUTE_NAME, args[++i]);
             else if ("-K".equals(args[i]))
@@ -784,8 +814,14 @@ public class NagiosJmxPlugin {
                 props.put(PROP_UNITS, args[++i]);
             else if ("-o".equals(args[i]))
                 props.put(PROP_OPERATION, args[++i]);
+            else if ("-l".equals(args[i]))
+                props.put(PROP_LOG, args[++i]);
             i++;
         }
         return props;
+    }
+
+    private static String base64Decode(String arg) {
+        return new String(DatatypeConverter.parseBase64Binary(arg));
     }
 }
