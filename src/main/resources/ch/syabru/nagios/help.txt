@@ -13,13 +13,19 @@ Options are:
 	
 -O 
     Object name to be checked, for example, "java.lang:type=Memory"
-    
+
+-B
+    Base64-encoded object name
+
 -A
     Attribute name
 	
 -K 
     Attribute key; use when attribute is a composite
-	
+
+-L
+    Log file
+
 -v
     verbose
 
